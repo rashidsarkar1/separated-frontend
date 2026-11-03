@@ -17,6 +17,7 @@ import {
   Search,
   CheckCircle2,
   Barcode,
+  Loader2,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -72,6 +73,7 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingReceipts, setUploadingReceipts] = useState(false);
   const [duplicateSearch, setDuplicateSearch] = useState("");
   const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
   const [searchingDuplicates, setSearchingDuplicates] = useState(false);
@@ -241,6 +243,7 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
         (dealer) => String(dealer._id || dealer.id) === String(formData.dealerId),
       );
       if (newId && pendingReceipts.length > 0) {
+        setUploadingReceipts(true);
         await Promise.all(
           pendingReceipts.map((receipt) =>
             saveDealerReceipt({
@@ -254,6 +257,7 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
             }),
           ),
         );
+        setUploadingReceipts(false);
       }
       if (newId) {
         onCreated(newId);
@@ -265,6 +269,7 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
         description: err.message || "An unexpected error occurred.",
       });
     } finally {
+      setUploadingReceipts(false);
       setSubmitting(false);
     }
   };
@@ -306,7 +311,16 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
             disabled={submitting}
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 h-10 rounded-xl shadow-md shadow-indigo-100 gap-2"
           >
-            {submitting ? "Saving Product..." : "Save & Publish Product"}
+            {uploadingReceipts ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Uploading receipts to Cloudinary...
+              </>
+            ) : submitting ? (
+              "Saving Product..."
+            ) : (
+              "Save & Publish Product"
+            )}
           </Button>
         </div>
       </div>
@@ -818,7 +832,16 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
             disabled={submitting}
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-8 h-11 rounded-xl shadow-lg shadow-indigo-100 gap-2"
           >
-            {submitting ? "Publishing SKU..." : "Save & Publish Product"}
+            {uploadingReceipts ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Uploading receipts to Cloudinary...
+              </>
+            ) : submitting ? (
+              "Publishing SKU..."
+            ) : (
+              "Save & Publish Product"
+            )}
           </Button>
         </div>
       </form>

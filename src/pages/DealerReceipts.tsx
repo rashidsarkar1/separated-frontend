@@ -79,7 +79,7 @@ export function DealerReceiptsPage({ dealerId, onBack }: DealerReceiptsPageProps
     try {
       await deleteDealerReceipt(id);
       setRefreshKey((key) => key + 1);
-      toast.success("Receipt deleted from project folder");
+      toast.success("Receipt deleted");
     } catch (requestError: any) {
       toast.error("Could not delete receipt", {
         description: requestError.response?.data?.message || requestError.message,
@@ -98,7 +98,7 @@ export function DealerReceiptsPage({ dealerId, onBack }: DealerReceiptsPageProps
             {dealer?.name || "Dealer"} Receipts
           </h1>
           <p className="text-sm text-slate-500">
-            {meta.total} images stored in the project folder.
+            {meta.total} images stored.
           </p>
         </div>
       </div>
@@ -205,4 +205,3 @@ export function DealerReceiptsPage({ dealerId, onBack }: DealerReceiptsPageProps
     </div>
   );
 }
-

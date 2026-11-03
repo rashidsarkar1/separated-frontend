@@ -41,15 +41,19 @@ export function DealerReceiptUploader({
   const galleryRef = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [busyMessage, setBusyMessage] = useState("");
 
   const persistNow = Boolean(productId || (persistForDealer && dealerId));
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setBusy(true);
+    setBusyMessage("Preparing receipt image...");
     try {
       const created: PendingDealerReceipt[] = [];
-      for (const file of Array.from(files)) {
+      const selectedFiles = Array.from(files);
+      let savedCount = 0;
+      for (const [index, file] of selectedFiles.entries()) {
         if (!file.type.startsWith("image/")) {
           toast.error(`${file.name} is not an image`);
           continue;
@@ -63,6 +67,9 @@ export function DealerReceiptUploader({
         };
 
         if (persistNow && (productId || dealerId)) {
+          setBusyMessage(
+            `Uploading receipt ${index + 1} of ${selectedFiles.length} to Cloudinary...`,
+          );
           await saveDealerReceipt({
             productId: productId || "",
             productName: productName || "",
@@ -72,6 +79,7 @@ export function DealerReceiptUploader({
             imageData,
             createdAt: receipt.createdAt,
           });
+          savedCount += 1;
         } else {
           created.push(receipt);
         }
@@ -79,9 +87,13 @@ export function DealerReceiptUploader({
 
       if (!persistNow && created.length > 0) {
         onPendingChange?.([...pendingReceipts, ...created]);
-      } else if (persistNow) {
+      } else if (persistNow && savedCount > 0) {
         onSaved?.();
-        toast.success("Dealer receipt saved in project folder");
+        toast.success(
+          savedCount === 1
+            ? "Dealer receipt uploaded to Cloudinary"
+            : `${savedCount} dealer receipts uploaded to Cloudinary`,
+        );
       }
 
       setNote("");
@@ -91,6 +103,7 @@ export function DealerReceiptUploader({
       });
     } finally {
       setBusy(false);
+      setBusyMessage("");
       if (cameraRef.current) cameraRef.current.value = "";
       if (galleryRef.current) galleryRef.current.value = "";
     }
@@ -104,7 +117,7 @@ export function DealerReceiptUploader({
           Dealer Receipt Image
         </label>
         <span className="text-[10px] font-semibold text-slate-400">
-          Camera or gallery • saved in local folder
+          Camera or gallery • stored in Cloudinary
         </span>
       </div>
 
@@ -123,12 +136,8 @@ export function DealerReceiptUploader({
           onClick={() => cameraRef.current?.click()}
           className="h-11 rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-bold text-xs gap-2"
         >
-          {busy ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Camera className="w-4 h-4" />
-          )}
-          Open Camera
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+          {busy ? "Uploading..." : "Open Camera"}
         </Button>
         <Button
           type="button"
@@ -137,10 +146,16 @@ export function DealerReceiptUploader({
           onClick={() => galleryRef.current?.click()}
           className="h-11 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs gap-2"
         >
-          <ImagePlus className="w-4 h-4" />
-          Choose Gallery
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+          {busy ? "Uploading..." : "Choose Gallery"}
         </Button>
       </div>
+      {busy && (
+        <p className="flex items-center gap-2 text-xs font-medium text-indigo-700" role="status" aria-live="polite">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          {busyMessage}
+        </p>
+      )}
 
       <input
         ref={cameraRef}
@@ -190,10 +205,9 @@ export function DealerReceiptUploader({
 
       <p className="text-[11px] text-slate-500">
         Add one receipt now, then upload another each time you buy this product
-        again. Images are saved in the server's local folder and appear on the
-        product details page.
+        again. Images are stored in Cloudinary and appear on the product details
+        page.
       </p>
     </div>
   );
 }
-

@@ -62,7 +62,7 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
     name: "",
     displayName: "",
     category: "",
-    unit: "Unit",
+    unit: "Piece",
     piecesPerUnit: "1",
     buyPrice: "",
     sellPrice: "",
@@ -137,7 +137,9 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
   const handleUnitChange = (val: string) => {
     let pieces = formData.piecesPerUnit;
     const lower = val.toLowerCase();
-    if (lower === "dozen") {
+    if (lower === "pair") {
+      pieces = "2";
+    } else if (lower === "dozen") {
       pieces = "12";
     } else if (
       ["box", "packed", "carton"].includes(lower) &&
@@ -162,6 +164,7 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
 
   const unitTypes = [
     "Unit",
+    "Pair",
     "Dozen",
     "Packed",
     "Piece",
@@ -185,7 +188,7 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
   // Secondary Unit (Pieces) calculation
   const piecesCount = Math.max(1, parseInt(formData.piecesPerUnit) || 1);
   const isMultiPieceUnit =
-    ["dozen", "box", "packed", "carton"].includes(
+    ["pair", "dozen", "box", "packed", "carton"].includes(
       formData.unit.toLowerCase(),
     ) || piecesCount > 1;
   const pieceBuyPrice = buyNum / piecesCount;
@@ -509,7 +512,7 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
               </div>
             </div>
 
-            {/* If Box, Packed, Dozen, Carton: Pieces per Unit Field */}
+            {/* If Pair, Box, Packed, Dozen, Carton: Pieces per Unit Field */}
             {isMultiPieceUnit && (
               <div className="mt-4 p-4 rounded-xl bg-indigo-50/60 border border-indigo-200 space-y-2 animate-in fade-in">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">

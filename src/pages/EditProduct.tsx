@@ -67,7 +67,7 @@ export function EditProduct({ productId, onBack, onUpdated }: EditProductProps) 
     if (product) {
       const defaultPieces = product.piecesPerUnit !== undefined 
         ? product.piecesPerUnit 
-        : (product.unit?.toLowerCase() === 'dozen' ? 12 : 1);
+        : (product.unit?.toLowerCase() === 'pair' ? 2 : product.unit?.toLowerCase() === 'dozen' ? 12 : 1);
 
       setFormData({
         name: product.name || '',
@@ -89,7 +89,9 @@ export function EditProduct({ productId, onBack, onUpdated }: EditProductProps) 
   const handleUnitChange = (val: string) => {
     let pieces = formData.piecesPerUnit;
     const lower = val.toLowerCase();
-    if (lower === 'dozen') {
+    if (lower === 'pair') {
+      pieces = '2';
+    } else if (lower === 'dozen') {
       pieces = '12';
     } else if (['box', 'packed', 'carton'].includes(lower) && (!pieces || pieces === '1')) {
       pieces = '10';
@@ -98,7 +100,7 @@ export function EditProduct({ productId, onBack, onUpdated }: EditProductProps) 
   };
 
   const categories = Array.from(new Set(products.map(p => p.category))).filter(Boolean);
-  const unitTypes = ['Unit', 'Dozen', 'Packed', 'Piece', 'Box', 'Kilogram', 'Gram', 'Liter', 'Meter', 'Carton'];
+  const unitTypes = ['Unit', 'Pair', 'Dozen', 'Packed', 'Piece', 'Box', 'Kilogram', 'Gram', 'Liter', 'Meter', 'Carton'];
 
   // Profit calculation preview
   const buyNum = parseFloat(formData.buyPrice) || 0;
@@ -109,7 +111,7 @@ export function EditProduct({ productId, onBack, onUpdated }: EditProductProps) 
 
   // Secondary Unit (Pieces) calculation
   const piecesCount = Math.max(1, parseInt(formData.piecesPerUnit) || 1);
-  const isMultiPieceUnit = ['dozen', 'box', 'packed', 'carton'].includes(formData.unit.toLowerCase()) || piecesCount > 1;
+  const isMultiPieceUnit = ['pair', 'dozen', 'box', 'packed', 'carton'].includes(formData.unit.toLowerCase()) || piecesCount > 1;
   const pieceBuyPrice = buyNum / piecesCount;
   const pieceSellPrice = sellNum / piecesCount;
   const pieceProfit = unitProfit / piecesCount;
@@ -317,7 +319,7 @@ export function EditProduct({ productId, onBack, onUpdated }: EditProductProps) 
                 </label>
                 <Select 
                   value={formData.unit}
-                  onValueChange={val => setFormData({ ...formData, unit: val })}
+                  onValueChange={handleUnitChange}
                 >
                   <SelectTrigger className="h-11 border-slate-200 bg-white rounded-xl text-sm">
                     <SelectValue placeholder="Select unit" />

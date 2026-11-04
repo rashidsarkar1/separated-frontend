@@ -78,6 +78,88 @@ interface CartItem {
   costPrice: number;
 }
 
+interface QuickSellCustomerSnapshot {
+  _id?: string;
+  id?: string;
+  name: string;
+  phone?: string;
+  dueBalance?: number;
+  advanceBalance?: number;
+}
+
+interface QuickSellDraft {
+  cart: CartItem[];
+  amountPaidInput: string;
+  applyAdvanceBalance: boolean;
+  customerDetails: QuickSellCustomerSnapshot | null;
+}
+
+const QUICK_SELL_DRAFTS_KEY = "quickSellDrafts.v1";
+const QUICK_SELL_ACTIVE_CUSTOMER_KEY = "quickSellActiveCustomer.v1";
+
+function readQuickSellDrafts(): Record<string, QuickSellDraft> {
+  try {
+    const stored = window.localStorage.getItem(QUICK_SELL_DRAFTS_KEY);
+    if (!stored) return {};
+    const parsed: unknown = JSON.parse(stored);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, QuickSellDraft>)
+      : {};
+  } catch (error) {
+    console.error("Could not read saved Quick Sell drafts", error);
+    return {};
+  }
+}
+
+function getInitialQuickSellState() {
+  try {
+    const selectedCustomerId =
+      window.localStorage.getItem(QUICK_SELL_ACTIVE_CUSTOMER_KEY) || "unknown";
+    const draft = readQuickSellDrafts()[selectedCustomerId];
+    return {
+      selectedCustomerId,
+      cart: Array.isArray(draft?.cart) ? draft.cart : [],
+      amountPaidInput:
+        typeof draft?.amountPaidInput === "string" ? draft.amountPaidInput : "",
+      applyAdvanceBalance: draft?.applyAdvanceBalance === true,
+      selectedCustomerDetails: draft?.customerDetails || null,
+    };
+  } catch (error) {
+    console.error("Could not restore the Quick Sell draft", error);
+    return {
+      selectedCustomerId: "unknown",
+      cart: [],
+      amountPaidInput: "",
+      applyAdvanceBalance: false,
+      selectedCustomerDetails: null,
+    };
+  }
+}
+
+function saveQuickSellDraft(customerId: string, draft: QuickSellDraft) {
+  try {
+    const drafts = readQuickSellDrafts();
+    drafts[customerId] = draft;
+    window.localStorage.setItem(QUICK_SELL_DRAFTS_KEY, JSON.stringify(drafts));
+    window.localStorage.setItem(QUICK_SELL_ACTIVE_CUSTOMER_KEY, customerId);
+  } catch (error) {
+    console.error("Could not save the Quick Sell draft", error);
+    toast.error("Draft receipt could not be saved on this device");
+  }
+}
+
+function getCustomerSnapshot(customer: any): QuickSellCustomerSnapshot | null {
+  if (!customer) return null;
+  return {
+    _id: customer._id,
+    id: customer.id,
+    name: customer.name || "Walk-in Customer",
+    phone: customer.phone,
+    dueBalance: customer.dueBalance,
+    advanceBalance: customer.advanceBalance,
+  };
+}
+
 export function QuickSell({
   onFinalizeSale,
 }: {
@@ -86,31 +168,74 @@ export function QuickSell({
   const dispatch = useAppDispatch();
   const { products } = useAppSelector((state) => state.inventory);
   const { customers } = useAppSelector((state) => state.customers);
+  const [initialDraft] = useState(getInitialQuickSellState);
 
   const [search, setSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [price, setPrice] = useState<string>("");
   const [sellUnit, setSellUnit] = useState("");
   const [quantity, setQuantity] = useState<string>("0");
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(initialDraft.cart);
   const [recentTrans, setRecentTrans] = useState<any[]>([]);
   const [recentTransMeta, setRecentTransMeta] = useState({ total: 0 });
   const [recentTransPage, setRecentTransPage] = useState(1);
   const [recentTransRange, setRecentTransRange] = useState("all");
   const [recentTransLoading, setRecentTransLoading] = useState(false);
-  const [selectedCustomerId, setSelectedCustomerId] =
-    useState<string>("unknown");
-  const [applyAdvanceBalance, setApplyAdvanceBalance] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(
+    initialDraft.selectedCustomerId,
+  );
+  const [applyAdvanceBalance, setApplyAdvanceBalance] = useState(
+    initialDraft.applyAdvanceBalance,
+  );
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerSearchResults, setCustomerSearchResults] = useState<any[]>([]);
   const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
-  const [selectedCustomerDetails, setSelectedCustomerDetails] =
-    useState<any>(null);
-  const [amountPaidInput, setAmountPaidInput] = useState<string>("");
+  const [selectedCustomerDetails, setSelectedCustomerDetails] = useState<any>(
+    initialDraft.selectedCustomerDetails,
+  );
+  const [amountPaidInput, setAmountPaidInput] = useState<string>(
+    initialDraft.amountPaidInput,
+  );
   const [viewOrderId, setViewOrderId] = useState<string | null>(null);
   const [selectedOrderData, setSelectedOrderData] = useState<any>(null);
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
   const cartEndRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    saveQuickSellDraft(selectedCustomerId || "unknown", {
+      cart,
+      amountPaidInput,
+      applyAdvanceBalance,
+      customerDetails: getCustomerSnapshot(selectedCustomerDetails),
+    });
+  }, [
+    selectedCustomerId,
+    cart,
+    amountPaidInput,
+    applyAdvanceBalance,
+    selectedCustomerDetails,
+  ]);
+
+  const handleCustomerChange = (customerId: string, customer: any) => {
+    const currentCustomerId = selectedCustomerId || "unknown";
+    saveQuickSellDraft(currentCustomerId, {
+      cart,
+      amountPaidInput,
+      applyAdvanceBalance,
+      customerDetails: getCustomerSnapshot(selectedCustomerDetails),
+    });
+
+    const draft = readQuickSellDrafts()[customerId];
+    setSelectedCustomerId(customerId);
+    setCart(Array.isArray(draft?.cart) ? draft.cart : []);
+    setAmountPaidInput(
+      typeof draft?.amountPaidInput === "string" ? draft.amountPaidInput : "",
+    );
+    setApplyAdvanceBalance(draft?.applyAdvanceBalance === true);
+    setSelectedCustomerDetails(
+      draft?.customerDetails || getCustomerSnapshot(customer),
+    );
+  };
 
   const scrollToBottom = () => {
     cartEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -658,9 +783,7 @@ export function QuickSell({
                         role="option"
                         aria-selected={customerId === selectedCustomerId}
                         onClick={() => {
-                          setSelectedCustomerId(customerId);
-                          setSelectedCustomerDetails(customer);
-                          setApplyAdvanceBalance(false);
+                          handleCustomerChange(customerId, customer);
                           setCustomerSearch("");
                         }}
                         className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 hover:bg-indigo-50 focus-visible:bg-indigo-50 focus-visible:outline-none"
@@ -693,13 +816,12 @@ export function QuickSell({
             <Select
               value={selectedCustomerId}
               onValueChange={(customerId) => {
-                setSelectedCustomerId(customerId);
-                setSelectedCustomerDetails(
+                handleCustomerChange(
+                  customerId,
                   customerOptions.find(
                     (customer) => (customer._id || customer.id) === customerId,
                   ) || null,
                 );
-                setApplyAdvanceBalance(false);
               }}
             >
               <SelectTrigger className="w-full h-10 md:h-11 bg-white border-slate-200 font-bold text-[10px] md:text-sm uppercase tracking-tight shadow-sm hover:border-indigo-300 transition-all">

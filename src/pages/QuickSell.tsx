@@ -4,7 +4,7 @@ import { TakaIcon } from "../components/common/TakaIcon";
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Search,
   Trash2,
@@ -172,6 +172,8 @@ export function QuickSell({
 
   const [search, setSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
+  const productSelectionRequest = useRef(0);
   const [price, setPrice] = useState<string>("");
   const [sellUnit, setSellUnit] = useState("");
   const [quantity, setQuantity] = useState<string>("0");
@@ -309,6 +311,29 @@ export function QuickSell({
         (p.category && p.category.toLowerCase().includes(term)),
     );
   }, [products, search]);
+
+  const handleSelectProduct = async (product: any) => {
+    const productId = product._id || product.id;
+    if (!productId || loadingProductId) return;
+
+    const requestId = ++productSelectionRequest.current;
+    setLoadingProductId(productId);
+    try {
+      const currentProduct = await apiService.getProductById(productId);
+      if (requestId !== productSelectionRequest.current) return;
+      setRecentTransPage(1);
+      setSelectedProduct(currentProduct);
+    } catch (error) {
+      if (requestId === productSelectionRequest.current) {
+        console.error("Could not load current product details", error);
+        toast.error("Could not load current product prices");
+      }
+    } finally {
+      if (requestId === productSelectionRequest.current) {
+        setLoadingProductId(null);
+      }
+    }
+  };
 
   const filteredCustomers = useMemo(() => {
     const list = customerSearch.trim() ? customerSearchResults : customers;
@@ -923,8 +948,7 @@ export function QuickSell({
                       key={p._id || p.id}
                       className="p-4 border-b border-slate-100 hover:bg-white flex items-center justify-between cursor-pointer group transition-all"
                       onClick={() => {
-                        setRecentTransPage(1);
-                        setSelectedProduct(p);
+                        void handleSelectProduct(p);
                       }}
                     >
                       <div className="flex items-center gap-3">

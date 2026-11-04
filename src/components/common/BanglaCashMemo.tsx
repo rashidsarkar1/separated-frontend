@@ -21,6 +21,7 @@ const unitInBangla: Record<string, string> = {
   unit: "",
   piece: "পিস",
   pieces: "পিস",
+  pair: "জোড়া",
   dozen: "ডজন",
   box: "বক্স",
   packed: "প্যাকেট",

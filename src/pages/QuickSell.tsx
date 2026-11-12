@@ -171,6 +171,8 @@ export function QuickSell({
   const [initialDraft] = useState(getInitialQuickSellState);
 
   const [search, setSearch] = useState("");
+  const [searchedProducts, setSearchedProducts] = useState<any[]>([]);
+  const [productSearchLoading, setProductSearchLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
   const productSelectionRequest = useRef(0);
@@ -255,6 +257,44 @@ export function QuickSell({
   }, [dispatch]);
 
   useEffect(() => {
+    const term = search.trim();
+    if (!term) {
+      setSearchedProducts([]);
+      setProductSearchLoading(false);
+      return;
+    }
+
+    let active = true;
+    setSearchedProducts([]);
+    setProductSearchLoading(true);
+    const timer = setTimeout(() => {
+      apiService
+        .getInventory(term, "all", "name", "asc", 1, 50)
+        .then((response) => {
+          if (active) {
+            setSearchedProducts(
+              Array.isArray(response?.data) ? response.data : [],
+            );
+          }
+        })
+        .catch((error) => {
+          if (active) {
+            console.error("Could not search products", error);
+            toast.error("Could not search products");
+          }
+        })
+        .finally(() => {
+          if (active) setProductSearchLoading(false);
+        });
+    }, 250);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [search]);
+
+  useEffect(() => {
     const term = customerSearch.trim();
     if (!term) {
       setCustomerSearchResults([]);
@@ -301,16 +341,24 @@ export function QuickSell({
 
   // Filter products based on search
   const filteredProducts = useMemo(() => {
-    const term = search.toLowerCase().trim();
+    const term = search.trim().toLowerCase();
     if (!term) return products;
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(term) ||
-        (p.displayName && p.displayName.toLowerCase().includes(term)) ||
-        (p.sku && p.sku.toLowerCase().includes(term)) ||
-        (p.category && p.category.toLowerCase().includes(term)),
-    );
-  }, [products, search]);
+    const matchesSearch = (product: any) =>
+      [product?.name, product?.displayName, product?.sku, product?.category]
+        .some((value) => String(value || "").toLowerCase().includes(term));
+    const matches = [
+      ...searchedProducts,
+      ...products.filter(matchesSearch),
+    ];
+    const uniqueProducts = new Map<string, any>();
+    matches.forEach((product) => {
+      const key = String(
+        product?._id || product?.id || product?.sku || product?.name || "",
+      );
+      if (key && !uniqueProducts.has(key)) uniqueProducts.set(key, product);
+    });
+    return Array.from(uniqueProducts.values());
+  }, [products, search, searchedProducts]);
 
   const handleSelectProduct = async (product: any) => {
     const productId = product._id || product.id;
@@ -974,7 +1022,12 @@ export function QuickSell({
                       </div>
                     </div>
                   ))}
-                  {filteredProducts.length === 0 && (
+                  {productSearchLoading && filteredProducts.length === 0 && (
+                    <div className="p-8 text-center text-slate-400 font-medium italic">
+                      Searching products...
+                    </div>
+                  )}
+                  {!productSearchLoading && filteredProducts.length === 0 && (
                     <div className="p-8 text-center text-slate-400 font-medium italic">
                       No products found
                     </div>

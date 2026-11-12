@@ -340,6 +340,11 @@ export const apiService = {
     return response.data;
   },
 
+  getInventoryValuation: async () => {
+    const response = await api.get("/inventory/valuation-summary");
+    return response.data.data;
+  },
+
   deleteProduct: async (id: string) => {
     const response = await api.delete(`/inventory/${id}`);
     return response.data.data;
@@ -361,5 +366,4 @@ export const apiService = {
     return response.data.data;
   },
 };
-
 

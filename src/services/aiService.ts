@@ -10,6 +10,37 @@ export interface InventoryInsightsParams {
   recentSales?: string[];
 }
 
+export async function suggestBanglaReceiptName(
+  internalName: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/ai/generate`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      prompt: `Suggest a concise Bengali receipt display name for this product. Preserve brand names, model numbers, and common technical terms when appropriate. Return only the suggested product name, with no quotes or explanation.\n\nProduct name: ${internalName}`,
+      systemInstruction:
+        "You create accurate, customer-friendly Bengali product names for retail receipts. Do not add product details that are not present in the input.",
+    }),
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(`AI name suggestion failed with HTTP ${response.status}`);
+  }
+
+  const result = await response.json();
+  const suggestion =
+    typeof result?.data?.text === "string" ? result.data.text.trim() : "";
+  if (!suggestion) {
+    throw new Error("AI returned an empty receipt name suggestion");
+  }
+  return suggestion;
+}
+
 /**
  * Fetches AI-generated inventory insights from the backend server.
  * The backend manages the Gemini API call securely using gemini-3.8-flash.
@@ -78,5 +109,4 @@ export function streamInventoryInsights(
     eventSource.close();
   };
 }
-
 

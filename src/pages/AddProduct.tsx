@@ -47,6 +47,7 @@ import {
 import { saveDealerReceipt } from "../utils/receiptStore";
 import { CategorySelect } from "../components/common/CategorySelect";
 import { apiService } from "../services/apiService";
+import { suggestBanglaReceiptName } from "../services/aiService";
 
 interface AddProductProps {
   onBack: () => void;
@@ -73,6 +74,10 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [receiptNameSuggestion, setReceiptNameSuggestion] = useState("");
+  const [suggestingReceiptName, setSuggestingReceiptName] = useState(false);
+  const [receiptNameSuggestionError, setReceiptNameSuggestionError] =
+    useState("");
   const [uploadingReceipts, setUploadingReceipts] = useState(false);
   const [duplicateSearch, setDuplicateSearch] = useState("");
   const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
@@ -132,6 +137,60 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
       window.clearTimeout(timer);
     };
   }, [duplicateSearch]);
+
+  useEffect(() => {
+    const internalName = formData.name.trim();
+    setReceiptNameSuggestion("");
+    setReceiptNameSuggestionError("");
+    setSuggestingReceiptName(false);
+    if (!internalName) return;
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setSuggestingReceiptName(true);
+      try {
+        const suggestion = await suggestBanglaReceiptName(
+          internalName,
+          controller.signal,
+        );
+        setReceiptNameSuggestion(suggestion);
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error("Could not suggest a Bengali receipt name", error);
+          setReceiptNameSuggestionError(
+            "বাংলা নামের পরামর্শ পাওয়া যায়নি। আপনি নিজে নাম লিখতে পারেন।",
+          );
+        }
+      } finally {
+        if (!controller.signal.aborted) setSuggestingReceiptName(false);
+      }
+    }, 600);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [formData.name]);
+
+  const handleInternalNameChange = (name: string) => {
+    setFormData((previous) => ({ ...previous, name }));
+  };
+
+  const acceptReceiptNameSuggestion = () => {
+    setFormData((previous) => ({
+      ...previous,
+      displayName: receiptNameSuggestion,
+    }));
+    setReceiptNameSuggestion("");
+  };
+
+  const rejectReceiptNameSuggestion = () => {
+    setFormData((previous) => ({
+      ...previous,
+      displayName: previous.name.trim(),
+    }));
+    setReceiptNameSuggestion("");
+  };
 
   // Handle unit selection with smart pieces default
   const handleUnitChange = (val: string) => {
@@ -416,9 +475,7 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
                 </label>
                 <Input
                   value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
+                  onChange={(e) => handleInternalNameChange(e.target.value)}
                   placeholder="e.g. UltraWide Gaming Monitor 34-Inch Curved"
                   className="h-11 border-slate-200 bg-white focus:border-indigo-500 rounded-xl text-sm"
                   required
@@ -448,6 +505,47 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
                   This custom title will appear on printed sales receipts and
                   live customer invoices.
                 </p>
+                {suggestingReceiptName && (
+                  <p className="flex items-center gap-1.5 text-[11px] text-indigo-600">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    AI বাংলা নামের পরামর্শ তৈরি করছে...
+                  </p>
+                )}
+                {receiptNameSuggestionError && (
+                  <p className="text-[11px] text-rose-600">
+                    {receiptNameSuggestionError}
+                  </p>
+                )}
+                {receiptNameSuggestion && (
+                  <div className="space-y-2 rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                    <p className="text-[11px] font-semibold text-indigo-900">
+                      AI-এর বাংলা পরামর্শ:{" "}
+                      <span className="text-sm">{receiptNameSuggestion}</span>
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={acceptReceiptNameSuggestion}
+                        className="gap-1 bg-indigo-600 text-white hover:bg-indigo-700"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        গ্রহণ করুন
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={rejectReceiptNameSuggestion}
+                      >
+                        বাতিল করুন
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-slate-600">
+                      গ্রহণ না করলে বা বাতিল করলে Internal নামটিই রসিদে থাকবে।
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

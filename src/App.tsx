@@ -15,6 +15,7 @@ import { ProductAnalytics } from "./pages/ProductAnalytics";
 import { Reports } from "./pages/Reports";
 import { Categories } from "./pages/Categories";
 import { ExpenseManagement } from "./pages/ExpenseManagement";
+import { Login } from "./pages/Login";
 import { Customers } from "./pages/Customers";
 import { Dealers } from "./pages/Dealers";
 import { ProductDetailAnalyticsPage } from "./pages/ProductDetailAnalytics";
@@ -60,6 +61,12 @@ import {
 import { Input } from "./components/ui/input";
 import { Badge } from "./components/ui/badge";
 import { cn } from "./lib/utils";
+import {
+  AUTH_EXPIRED_EVENT,
+  clearAuthSession,
+  getAuthToken,
+  saveAuthSession,
+} from "./lib/authSession";
 import { Separator } from "./components/ui/separator";
 
 import { apiService } from "./services/apiService";
@@ -97,7 +104,8 @@ const tabToPath = (tab: string): string => {
 };
 
 export default function App() {
-  const [user, setUser] = useState<any>({ username: "admin", role: "admin" });
+  const [user, setUser] = useState<any>(null);
+  const [authChecking, setAuthChecking] = useState(() => Boolean(getAuthToken()));
   const [activeTab, setActiveTabState] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return pathToTab(window.location.pathname);
@@ -114,6 +122,36 @@ export default function App() {
       }
     }
   };
+
+  useEffect(() => {
+    let active = true;
+    const handleExpiredSession = () => {
+      if (active) setUser(null);
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleExpiredSession);
+
+    if (!getAuthToken()) {
+      setAuthChecking(false);
+    } else {
+      apiService
+        .getCurrentUser()
+        .then((authenticatedUser) => {
+          if (active) setUser(authenticatedUser);
+        })
+        .catch(() => {
+          clearAuthSession();
+          if (active) setUser(null);
+        })
+        .finally(() => {
+          if (active) setAuthChecking(false);
+        });
+    }
+
+    return () => {
+      active = false;
+      window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpiredSession);
+    };
+  }, []);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -383,6 +421,29 @@ export default function App() {
         );
     }
   };
+
+  if (authChecking) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-950 text-sm font-medium text-slate-300">
+        Checking secure session...
+        <Toaster position="top-right" richColors />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <>
+        <Login
+          onLogin={(authenticatedUser, token, expiresAt) => {
+            saveAuthSession(token, expiresAt);
+            setUser(authenticatedUser);
+          }}
+        />
+        <Toaster position="top-right" richColors />
+      </>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden relative">

@@ -4,6 +4,10 @@
  */
 
 import { API_BASE_URL } from "../lib/apiConfig";
+import {
+  getAuthorizationHeaders,
+  handleUnauthorizedResponse,
+} from "../lib/authSession";
 
 export interface InventoryInsightsParams {
   lowStockItems?: string[];
@@ -16,9 +20,9 @@ export async function suggestBanglaReceiptName(
 ): Promise<string> {
   const response = await fetch(`${API_BASE_URL}/ai/generate`, {
     method: "POST",
-    credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthorizationHeaders(),
     },
     body: JSON.stringify({
       prompt: `Suggest a concise Bengali receipt display name for this product. Preserve brand names, model numbers, and common technical terms when appropriate. Return only the suggested product name, with no quotes or explanation.\n\nProduct name: ${internalName}`,
@@ -29,6 +33,7 @@ export async function suggestBanglaReceiptName(
   });
 
   if (!response.ok) {
+    handleUnauthorizedResponse(response.status);
     throw new Error(`AI name suggestion failed with HTTP ${response.status}`);
   }
 
@@ -51,11 +56,13 @@ export async function getInventoryInsights(params?: InventoryInsightsParams): Pr
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthorizationHeaders(),
       },
       body: JSON.stringify(params || {}),
     });
 
     if (!response.ok) {
+      handleUnauthorizedResponse(response.status);
       throw new Error(`Server returned HTTP ${response.status}`);
     }
 
@@ -78,35 +85,57 @@ export function streamInventoryInsights(
   onComplete?: () => void,
   onError?: (err: any) => void
 ): () => void {
-  const eventSource = new EventSource(`${API_BASE_URL}/ai/insights/stream`);
-
-  eventSource.onmessage = (event) => {
-    if (event.data === '[DONE]') {
-      eventSource.close();
-      if (onComplete) onComplete();
-      return;
-    }
-
+  const controller = new AbortController();
+  void (async () => {
     try {
-      const parsed = JSON.parse(event.data);
-      if (parsed.text) {
-        onChunk(parsed.text);
+      const response = await fetch(`${API_BASE_URL}/ai/insights/stream`, {
+        headers: getAuthorizationHeaders(),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        handleUnauthorizedResponse(response.status);
+        throw new Error(`Server returned HTTP ${response.status}`);
       }
-    } catch (e) {
-      // Raw string fallback
-      onChunk(event.data);
+      if (!response.body) throw new Error("AI stream response is unavailable");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finished = false;
+      while (!finished) {
+        const { value, done } = await reader.read();
+        buffer += decoder.decode(value, { stream: !done });
+        const messages = buffer.split(/\r?\n\r?\n/);
+        buffer = messages.pop() || "";
+        for (const message of messages) {
+          const data = message
+            .split(/\r?\n/)
+            .filter((line) => line.startsWith("data:"))
+            .map((line) => line.slice(5).trimStart())
+            .join("\n");
+          if (!data) continue;
+          if (data === "[DONE]") {
+            finished = true;
+            onComplete?.();
+            break;
+          }
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) onChunk(parsed.text);
+          } catch {
+            onChunk(data);
+          }
+        }
+        if (done) finished = true;
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        console.error("AI Stream Error:", error);
+        onError?.(error);
+      }
     }
-  };
+  })();
 
-  eventSource.onerror = (err) => {
-    console.error("AI Stream Error:", err);
-    eventSource.close();
-    if (onError) onError(err);
-  };
-
-  // Return cancel/cleanup function
-  return () => {
-    eventSource.close();
-  };
+  return () => controller.abort();
 }
 

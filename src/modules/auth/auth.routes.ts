@@ -12,8 +12,11 @@ router.post(
   catchAsync(async (req, res) => {
     const { username, password } = req.body;
 
-    const rawAdminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const rawAdminPass = process.env.ADMIN_PASSWORD || 'admin123';
+    const rawAdminUsername = process.env.ADMIN_USERNAME;
+    const rawAdminPass = process.env.ADMIN_PASSWORD;
+    if (!rawAdminUsername?.trim() || !rawAdminPass) {
+      throw new AppError(503, 'Authentication is not configured');
+    }
 
     const adminUsername = rawAdminUsername.trim();
     const adminPass = rawAdminPass.trim();
@@ -21,29 +24,21 @@ router.post(
     const submittedUsername = (username || '').toString().trim();
     const submittedPassword = (password || '').toString().trim();
 
-    console.log(`[Auth Debug] Comparing User: "${submittedUsername}" (len: ${submittedUsername.length}) vs "${adminUsername}" (len: ${adminUsername.length})`);
-    console.log(`[Auth Debug] Comparing Pass: "${submittedPassword}" (len: ${submittedPassword.length}) vs "${adminPass}" (len: ${adminPass.length})`);
-
     if (!submittedUsername || !submittedPassword) {
       throw new AppError(400, 'Username and password are required');
     }
 
     if (submittedUsername !== adminUsername) {
-      console.warn(`[Auth] Username mismatch`);
-      throw new AppError(401, 'Unauthorized: Invalid username');
+      throw new AppError(401, 'Invalid username or password');
     }
 
     if (submittedPassword !== adminPass) {
-      console.warn(`[Auth] Password mismatch`);
-      // DEBUG ONLY: Remove this before production
-      throw new AppError(401, `Unauthorized: Invalid password. Submitted: "${submittedPassword}" (${submittedPassword.length}), Expected: "${adminPass}" (${adminPass.length})`);
+      throw new AppError(401, 'Invalid username or password');
     }
-
-    console.log(`[Auth] Success for user: ${submittedUsername}`);
 
     const token = jwt.sign(
       { username, role: 'admin' },
-      process.env.JWT_SECRET || 'secret',
+      process.env.JWT_SECRET!,
       { expiresIn: '1d' }
     );
 

@@ -1,16 +1,46 @@
 import axios from "axios";
 import { API_BASE_URL } from "../lib/apiConfig";
+import {
+  clearAuthSession,
+  getAuthToken,
+  handleUnauthorizedResponse,
+} from "../lib/authSession";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true,
 });
+
+api.interceptors.request.use((config) => {
+  if (config.url === "/auth/login") return config;
+  const token = getAuthToken();
+  if (!token) {
+    clearAuthSession();
+    return Promise.reject(new Error("Please sign in to continue."));
+  }
+  config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && error.config?.url !== "/auth/login") {
+      handleUnauthorizedResponse(401);
+    }
+    return Promise.reject(error);
+  },
+);
 
 export const apiService = {
   // Auth
   login: async (credentials: any) => {
     const response = await api.post("/auth/login", credentials);
     return response.data;
+  },
+
+  getCurrentUser: async () => {
+    const response = await api.get("/auth/me");
+    return response.data.data;
   },
 
   // Inventory

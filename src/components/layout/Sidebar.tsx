@@ -16,6 +16,7 @@ import {
   Store,
   Zap,
   Tags,
+  Wallet,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/button';
@@ -37,6 +38,7 @@ const navItems = [
   { id: 'dealers', label: 'Dealers', icon: Store },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
+  { id: 'expenses', label: 'Manage Expenses', icon: Wallet },
   { id: 'categories', label: 'Categories', icon: Tags },
 ];
 

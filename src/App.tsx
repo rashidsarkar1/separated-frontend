@@ -14,6 +14,7 @@ import { CustomerAnalytics } from "./pages/CustomerAnalytics";
 import { ProductAnalytics } from "./pages/ProductAnalytics";
 import { Reports } from "./pages/Reports";
 import { Categories } from "./pages/Categories";
+import { ExpenseManagement } from "./pages/ExpenseManagement";
 import { Customers } from "./pages/Customers";
 import { Dealers } from "./pages/Dealers";
 import { ProductDetailAnalyticsPage } from "./pages/ProductDetailAnalytics";
@@ -84,6 +85,7 @@ const pathToTab = (pathname: string): string => {
   if (clean === "/customer-analytics") return "customer-analytics";
   if (clean === "/product-analytics") return "product-analytics";
   if (clean === "/reports") return "reports";
+  if (clean === "/expenses") return "expenses";
   if (clean === "/settings") return "settings";
   return "dashboard";
 };
@@ -366,6 +368,8 @@ export default function App() {
         );
       case "reports":
         return <Reports />;
+      case "expenses":
+        return <ExpenseManagement />;
       case "categories":
         return <Categories />;
       case "settings":

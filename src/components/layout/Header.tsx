@@ -43,6 +43,7 @@ export function Header({ activeTab, onMenuClick }: { activeTab: string, onMenuCl
       'add-product': 'Add Product',
       'edit-product': 'Edit Product',
       reports: 'Profit & Reports',
+      expenses: 'Manage Expenses',
       categories: 'Categories',
       settings: 'System Settings'
     };

@@ -103,6 +103,57 @@ export const apiService = {
     return response.data.data;
   },
 
+  // Expenses
+  getExpenseCategories: async (): Promise<string[]> => {
+    const response = await api.get("/expenses/categories");
+    return response.data.data;
+  },
+
+  createExpenseCategory: async (name: string) => {
+    const response = await api.post("/expenses/categories", { name });
+    return response.data.data;
+  },
+
+  getExpenses: async (options: {
+    search?: string;
+    category?: string;
+    frequency?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    order?: "asc" | "desc";
+  }) => {
+    const params = new URLSearchParams();
+    Object.entries(options).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") params.set(key, String(value));
+    });
+    const response = await api.get(`/expenses?${params.toString()}`);
+    return response.data;
+  },
+
+  getExpenseSummary: async (from: string, to: string) => {
+    const params = new URLSearchParams({ from, to });
+    const response = await api.get(`/expenses/summary?${params.toString()}`);
+    return response.data.data;
+  },
+
+  createExpense: async (expenseData: any) => {
+    const response = await api.post("/expenses", expenseData);
+    return response.data.data;
+  },
+
+  updateExpense: async (id: string, expenseData: any) => {
+    const response = await api.patch(`/expenses/${id}`, expenseData);
+    return response.data.data;
+  },
+
+  deleteExpense: async (id: string) => {
+    const response = await api.delete(`/expenses/${id}`);
+    return response.data.data;
+  },
+
   // Analytics
   getAnalyticsSummary: async (range: string) => {
     const response = await api.get(`/analytics/summary?range=${range}`);

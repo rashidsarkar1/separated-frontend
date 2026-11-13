@@ -23,5 +23,13 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "src/middleware",
+    "src/modules",
+    "src/routes",
+    "src/shared",
+    "src/utils/AppError.ts",
+    "src/utils/sendResponse.ts"
+  ]
 }

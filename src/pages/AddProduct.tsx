@@ -78,6 +78,7 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
   const [suggestingReceiptName, setSuggestingReceiptName] = useState(false);
   const [receiptNameSuggestionError, setReceiptNameSuggestionError] =
     useState("");
+  const [receiptNameRetryCount, setReceiptNameRetryCount] = useState(0);
   const [uploadingReceipts, setUploadingReceipts] = useState(false);
   const [duplicateSearch, setDuplicateSearch] = useState("");
   const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
@@ -158,7 +159,9 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
         if (!controller.signal.aborted) {
           console.error("Could not suggest a Bengali receipt name", error);
           setReceiptNameSuggestionError(
-            "বাংলা নামের পরামর্শ পাওয়া যায়নি। আপনি নিজে নাম লিখতে পারেন।",
+            error instanceof Error
+              ? error.message
+              : "বাংলা নামের পরামর্শ পাওয়া যায়নি। আপনি নিজে নাম লিখতে পারেন।",
           );
         }
       } finally {
@@ -170,7 +173,7 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [formData.name]);
+  }, [formData.name, receiptNameRetryCount]);
 
   const handleInternalNameChange = (name: string) => {
     setFormData((previous) => ({ ...previous, name }));
@@ -512,9 +515,21 @@ export function AddProduct({ onBack, onCreated }: AddProductProps) {
                   </p>
                 )}
                 {receiptNameSuggestionError && (
-                  <p className="text-[11px] text-rose-600">
-                    {receiptNameSuggestionError}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[11px] text-rose-600">
+                      {receiptNameSuggestionError}
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setReceiptNameRetryCount((count) => count + 1)
+                      }
+                    >
+                      আবার চেষ্টা করুন
+                    </Button>
+                  </div>
                 )}
                 {receiptNameSuggestion && (
                   <div className="space-y-2 rounded-xl border border-indigo-200 bg-indigo-50 p-3">

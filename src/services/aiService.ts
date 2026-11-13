@@ -34,7 +34,12 @@ export async function suggestBanglaReceiptName(
 
   if (!response.ok) {
     handleUnauthorizedResponse(response.status);
-    throw new Error(`AI name suggestion failed with HTTP ${response.status}`);
+    const errorResult = await response.json().catch(() => null);
+    const message =
+      typeof errorResult?.message === "string"
+        ? errorResult.message
+        : `AI name suggestion failed with HTTP ${response.status}`;
+    throw new Error(message);
   }
 
   const result = await response.json();
